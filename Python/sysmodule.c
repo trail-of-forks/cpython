@@ -3352,6 +3352,7 @@ static PyStructSequence_Field flags_fields[] = {
     {"gil",                     "-X gil"},
     {"thread_inherit_context",  "-X thread_inherit_context"},
     {"context_aware_warnings",    "-X context_aware_warnings"},
+    {"strict_type_annotations",  "-X strict-type-annotations"},
     {0}
 };
 
@@ -3361,7 +3362,7 @@ static PyStructSequence_Desc flags_desc = {
     "sys.flags",        /* name */
     flags__doc__,       /* doc */
     flags_fields,       /* fields */
-    18
+    22
 };
 
 static void
@@ -3454,6 +3455,7 @@ set_flags_from_config(PyInterpreterState *interp, PyObject *flags)
 #endif
     SetFlag(config->thread_inherit_context);
     SetFlag(config->context_aware_warnings);
+    SetFlag(config->strict_type_annotations);
 #undef SetFlagObj
 #undef SetFlag
     return 0;

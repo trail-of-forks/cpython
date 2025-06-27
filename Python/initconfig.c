@@ -176,6 +176,7 @@ static const PyConfigSpec PYCONFIG_SPEC[] = {
     SPEC(show_ref_count, BOOL, READ_ONLY, NO_SYS),
     SPEC(site_import, BOOL, READ_ONLY, NO_SYS),  // sys.flags.no_site
     SPEC(skip_source_first_line, BOOL, READ_ONLY, NO_SYS),
+    SPEC(strict_type_annotations, BOOL, READ_ONLY, NO_SYS),  // sys.flags.strict_type_annotations
     SPEC(stdio_encoding, WSTR, READ_ONLY, NO_SYS),
     SPEC(stdio_errors, WSTR, READ_ONLY, NO_SYS),
     SPEC(tracemalloc, UINT, READ_ONLY, NO_SYS),
@@ -195,6 +196,7 @@ static const PyConfigSpec PYCONFIG_SPEC[] = {
     SPEC(_is_python_build, BOOL, INIT_ONLY, NO_SYS),
     SPEC(module_search_paths_set, BOOL, INIT_ONLY, NO_SYS),
     SPEC(pythonpath_env, WSTR_OPT, INIT_ONLY, NO_SYS),
+    SPEC(strict_type_annotations, BOOL, INIT_ONLY, NO_SYS),
     SPEC(sys_path_0, WSTR_OPT, INIT_ONLY, NO_SYS),
 
     // Array terminator
@@ -302,6 +304,8 @@ The following implementation-specific options are available:\n\
 -X cpu_count=N: override the return value of os.cpu_count();\n\
          -X cpu_count=default cancels overriding; also PYTHON_CPU_COUNT\n\
 -X dev : enable Python Development Mode; also PYTHONDEVMODE\n\
+-X strict-type-annotations: enable strict runtime type annotation checking;\n\
+         raises exception when variable assignment conflicts with type annotation\n\
 -X faulthandler: dump the Python traceback on fatal errors;\n\
          also PYTHONFAULTHANDLER\n\
 -X frozen_modules=[on|off]: whether to use frozen modules; the default is \"on\"\n\
@@ -1047,6 +1051,7 @@ _PyConfig_InitCompatConfig(PyConfig *config)
     config->_is_python_build = 0;
     config->code_debug_ranges = 1;
     config->cpu_count = -1;
+    config->strict_type_annotations = 0;
 #ifdef Py_GIL_DISABLED
     config->thread_inherit_context = 1;
     config->context_aware_warnings = 1;
@@ -1962,6 +1967,16 @@ error:
 }
 
 static PyStatus
+config_init_strict_type_annotations(PyConfig *config)
+{
+    const wchar_t *xoption = config_get_xoption(config, L"strict-type-annotations");
+    if (xoption) {
+        config->strict_type_annotations = 1;
+    }
+    return _PyStatus_OK();
+}
+
+static PyStatus
 config_init_thread_inherit_context(PyConfig *config)
 {
     const char *env = config_get_env(config, "PYTHON_THREAD_INHERIT_CONTEXT");
@@ -2337,6 +2352,11 @@ config_read_complex_options(PyConfig *config)
         if (_PyStatus_EXCEPTION(status)) {
             return status;
         }
+    }
+
+    status = config_init_strict_type_annotations(config);
+    if (_PyStatus_EXCEPTION(status)) {
+        return status;
     }
 
     if (config->pycache_prefix == NULL) {

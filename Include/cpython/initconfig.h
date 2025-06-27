@@ -187,6 +187,7 @@ typedef struct PyConfig {
 #endif
 
     int cpu_count;
+    int strict_type_annotations;
 #ifdef Py_GIL_DISABLED
     int enable_gil;
     int tlbc_enabled;

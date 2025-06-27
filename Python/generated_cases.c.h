@@ -11149,6 +11149,38 @@
             INSTRUCTION_STATS(STORE_FAST);
             _PyStackRef value;
             value = stack_pointer[-1];
+            if (_Py_GetConfig()->strict_type_annotations) {
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                PyObject *varnames = PyCode_GetVarnames(_PyFrame_GetCode(frame));
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                if (varnames != NULL) {
+                    _PyFrame_SetStackPointer(frame, stack_pointer);
+                    PyObject *name_obj = PyTuple_GetItem(varnames, oparg);
+                    stack_pointer = _PyFrame_GetStackPointer(frame);
+                    if (name_obj != NULL) {
+                        PyObject *globals_dict = GLOBALS();
+                        if (globals_dict != NULL) {
+                            _PyFrame_SetStackPointer(frame, stack_pointer);
+                            int err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(value), name_obj, globals_dict);
+                            stack_pointer = _PyFrame_GetStackPointer(frame);
+                            if (err < 0) {
+                                _PyFrame_SetStackPointer(frame, stack_pointer);
+                                Py_DECREF(varnames);
+                                stack_pointer = _PyFrame_GetStackPointer(frame);
+                                stack_pointer += -1;
+                                assert(WITHIN_STACK_BOUNDS());
+                                _PyFrame_SetStackPointer(frame, stack_pointer);
+                                PyStackRef_CLOSE(value);
+                                stack_pointer = _PyFrame_GetStackPointer(frame);
+                                JUMP_TO_LABEL(error);
+                            }
+                        }
+                    }
+                    _PyFrame_SetStackPointer(frame, stack_pointer);
+                    Py_DECREF(varnames);
+                    stack_pointer = _PyFrame_GetStackPointer(frame);
+                }
+            }
             _PyStackRef tmp = GETLOCAL(oparg);
             GETLOCAL(oparg) = value;
             stack_pointer += -1;
@@ -11225,7 +11257,18 @@
             v = stack_pointer[-1];
             PyObject *name = GETITEM(FRAME_CO_NAMES, oparg);
             _PyFrame_SetStackPointer(frame, stack_pointer);
-            int err = PyDict_SetItem(GLOBALS(), name, PyStackRef_AsPyObjectBorrow(v));
+            int err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(v), name, GLOBALS());
+            stack_pointer = _PyFrame_GetStackPointer(frame);
+            if (err < 0) {
+                stack_pointer += -1;
+                assert(WITHIN_STACK_BOUNDS());
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                PyStackRef_CLOSE(v);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                JUMP_TO_LABEL(error);
+            }
+            _PyFrame_SetStackPointer(frame, stack_pointer);
+            err = PyDict_SetItem(GLOBALS(), name, PyStackRef_AsPyObjectBorrow(v));
             stack_pointer = _PyFrame_GetStackPointer(frame);
             stack_pointer += -1;
             assert(WITHIN_STACK_BOUNDS());
@@ -11256,6 +11299,17 @@
                 _PyErr_Format(tstate, PyExc_SystemError,
                               "no locals found when storing %R", name);
                 stack_pointer = _PyFrame_GetStackPointer(frame);
+                stack_pointer += -1;
+                assert(WITHIN_STACK_BOUNDS());
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                PyStackRef_CLOSE(v);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                JUMP_TO_LABEL(error);
+            }
+            _PyFrame_SetStackPointer(frame, stack_pointer);
+            err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(v), name, ns);
+            stack_pointer = _PyFrame_GetStackPointer(frame);
+            if (err < 0) {
                 stack_pointer += -1;
                 assert(WITHIN_STACK_BOUNDS());
                 _PyFrame_SetStackPointer(frame, stack_pointer);

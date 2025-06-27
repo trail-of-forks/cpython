@@ -138,6 +138,131 @@
 #endif
 #endif
 
+// Helper function for strict type annotation checking
+static int
+check_type_annotation(PyThreadState *tstate, PyObject *value, 
+                     PyObject *name, PyObject *locals_dict) {
+    // Only check if strict type annotations are enabled
+    if (!_Py_GetConfig()->strict_type_annotations) {
+        return 0;
+    }
+    
+    if (locals_dict == NULL) {
+        return 0;
+    }
+    
+    // Skip checking if we're setting up the annotation system itself
+    if (name && PyUnicode_Check(name)) {
+        const char *name_str = PyUnicode_AsUTF8(name);
+        if (name_str && (strcmp(name_str, "__conditional_annotations__") == 0 ||
+                        strcmp(name_str, "__annotate__") == 0)) {
+            return 0; // Don't check annotation system variables
+        }
+    }
+    
+    // Get annotations - first try __annotations__ for older compatibility
+    PyObject *annotations = NULL;
+    int err = PyMapping_GetOptionalItem(locals_dict, &_Py_ID(__annotations__), &annotations);
+    if (err < 0) {
+        return -1;
+    }
+    
+    // If no __annotations__, try __annotate__ (Python 3.15+)
+    if (annotations == NULL) {
+        PyObject *annotate_func = NULL;
+        err = PyMapping_GetOptionalItem(locals_dict, &_Py_ID(__annotate__), &annotate_func);
+        if (err < 0) {
+            return -1;
+        }
+        if (annotate_func != NULL && PyCallable_Check(annotate_func)) {
+            // Force all annotations to be available by temporarily populating 
+            // __conditional_annotations__ with all possible indices
+            PyObject *conditional_annotations = NULL;
+            err = PyMapping_GetOptionalItem(locals_dict, &_Py_ID(__conditional_annotations__), &conditional_annotations);
+            if (err < 0) {
+                Py_DECREF(annotate_func);
+                return -1;
+            }
+            
+            if (conditional_annotations && PySet_Check(conditional_annotations)) {
+                // Temporarily add all possible annotation indices (0-100 should cover most cases)
+                PyObject *temp_indices[100];
+                int temp_count = 0;
+                
+                for (int i = 0; i < 100; i++) {
+                    PyObject *index = PyLong_FromLong(i);
+                    if (index && PySet_Add(conditional_annotations, index) == 0) {
+                        temp_indices[temp_count++] = index;
+                    } else {
+                        Py_XDECREF(index);
+                        break;
+                    }
+                }
+                
+                // Now call __annotate__(1) with all indices available
+                PyObject *format_arg = PyLong_FromLong(1); // FORMAT_ANNOTATIONS_VALUE = 1
+                if (format_arg != NULL) {
+                    annotations = PyObject_CallOneArg(annotate_func, format_arg);
+                    Py_DECREF(format_arg);
+                }
+                
+                // Clean up - remove the temporary indices
+                for (int i = 0; i < temp_count; i++) {
+                    PySet_Discard(conditional_annotations, temp_indices[i]);
+                    Py_DECREF(temp_indices[i]);
+                }
+                
+                Py_DECREF(conditional_annotations);
+            }
+            
+            Py_DECREF(annotate_func);
+            
+            if (annotations == NULL) {
+                return -1; // Error calling __annotate__
+            }
+            
+        } else {
+            Py_XDECREF(annotate_func);
+            return 0; // No annotations available
+        }
+    }
+    
+    if (annotations == NULL) {
+        return 0; // No annotations, nothing to check
+    }
+    
+    // Get the type annotation for this variable
+    PyObject *expected_type = NULL;
+    err = PyMapping_GetOptionalItem(annotations, name, &expected_type);
+    
+    Py_DECREF(annotations);
+    if (err < 0) {
+        return -1;
+    }
+    if (expected_type == NULL) {
+        return 0; // No annotation for this variable
+    }
+    
+    // Check if the value matches the expected type
+    int result = PyObject_IsInstance(value, expected_type);
+    
+    if (result < 0) {
+        Py_DECREF(expected_type);
+        return -1; // Error in isinstance check
+    }
+    if (result == 0) {
+        // Type mismatch - raise exception
+        PyObject *value_type = (PyObject *)Py_TYPE(value);
+        _PyErr_Format(tstate, PyExc_TypeError,
+                     "Variable %R with type annotation %R assigned value of type %R",
+                     name, expected_type, value_type);
+        Py_DECREF(expected_type);
+        return -1;
+    }
+    Py_DECREF(expected_type);
+    
+    return 0; // Type check passed
+}
 
 static void
 check_invalid_reentrancy(void)

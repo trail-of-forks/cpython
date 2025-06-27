@@ -79,6 +79,7 @@ static uint16_t invert, counter, index, hint;
 static uint32_t type_version;
 static _PyExecutorObject *current_executor;
 
+
 static PyObject *
 dummy_func(
     PyThreadState *tstate,
@@ -307,6 +308,28 @@ dummy_func(
         }
 
         replicate(8) inst(STORE_FAST, (value --)) {
+            // Check type annotation if strict checking is enabled
+            if (_Py_GetConfig()->strict_type_annotations) {
+                PyObject *varnames = PyCode_GetVarnames(_PyFrame_GetCode(frame));
+                if (varnames != NULL) {
+                    PyObject *name_obj = PyTuple_GetItem(varnames, oparg);
+                    if (name_obj != NULL) {
+                        // For STORE_FAST, check annotations in the global namespace 
+                        // (module level) or function globals
+                        PyObject *globals_dict = GLOBALS();
+                        if (globals_dict != NULL) {
+                            int err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(value), name_obj, globals_dict);
+                            if (err < 0) {
+                                Py_DECREF(varnames);
+                                PyStackRef_CLOSE(value);
+                                ERROR_IF(true);
+                            }
+                        }
+                    }
+                    Py_DECREF(varnames);
+                }
+            }
+            
             _PyStackRef tmp = GETLOCAL(oparg);
             GETLOCAL(oparg) = value;
             DEAD(value);
@@ -1550,6 +1573,14 @@ dummy_func(
                 PyStackRef_CLOSE(v);
                 ERROR_IF(true);
             }
+            
+            // Check type annotation if strict checking is enabled
+            err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(v), name, ns);
+            if (err < 0) {
+                PyStackRef_CLOSE(v);
+                ERROR_IF(true);
+            }
+            
             if (PyDict_CheckExact(ns)) {
                 err = PyDict_SetItem(ns, name, PyStackRef_AsPyObjectBorrow(v));
             }
@@ -1702,7 +1733,15 @@ dummy_func(
 
         inst(STORE_GLOBAL, (v --)) {
             PyObject *name = GETITEM(FRAME_CO_NAMES, oparg);
-            int err = PyDict_SetItem(GLOBALS(), name, PyStackRef_AsPyObjectBorrow(v));
+            
+            // Check type annotation if strict checking is enabled
+            int err = check_type_annotation(tstate, PyStackRef_AsPyObjectBorrow(v), name, GLOBALS());
+            if (err < 0) {
+                PyStackRef_CLOSE(v);
+                ERROR_IF(true);
+            }
+            
+            err = PyDict_SetItem(GLOBALS(), name, PyStackRef_AsPyObjectBorrow(v));
             PyStackRef_CLOSE(v);
             ERROR_IF(err);
         }
