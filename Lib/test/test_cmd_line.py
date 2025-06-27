@@ -1249,7 +1249,7 @@ class CmdLineTest(unittest.TestCase):
 
     def test_strict_type_annotations(self):
         # Test basic functionality of -X strict-type-annotations
-        
+
         # Test that correct type assignments work
         success_code = """
 x: int = 5
@@ -1259,7 +1259,7 @@ print("success")
 """
         res = assert_python_ok('-X', 'strict-type-annotations', '-c', success_code)
         self.assertIn(b'success', res.out)
-        
+
         # Test that type mismatches raise TypeError
         failure_code = """
 x: int = "hello"
@@ -1267,10 +1267,10 @@ x: int = "hello"
         res = assert_python_failure('-X', 'strict-type-annotations', '-c', failure_code)
         self.assertIn(b'TypeError', res.err)
         self.assertIn(b'type annotation', res.err)
-        
+
         # Test without the flag - should not raise errors
         res = assert_python_ok('-c', failure_code)
-        
+
         # Test with built-in collection types (simpler than typing module)
         builtin_type_code = """
 x: list = [1, 2, 3]
@@ -1280,7 +1280,7 @@ print("builtin types work")
 """
         res = assert_python_ok('-X', 'strict-type-annotations', '-c', builtin_type_code)
         self.assertIn(b'builtin types work', res.out)
-        
+
         # Test builtin type mismatch
         builtin_type_failure = """
 x: list = "not a list"
@@ -1301,7 +1301,7 @@ print("function scope works")
 """
         res = assert_python_ok('-X', 'strict-type-annotations', '-c', function_code)
         self.assertIn(b'function scope works', res.out)
-        
+
         # Function scope type checking might not work if annotations are local
         # This is actually expected behavior - check that it doesn't crash
         function_no_error = """
@@ -1326,7 +1326,7 @@ class TestClass:
     def __init__(self):
         self.x: int = 42
         self.y: str = "test"
-    
+
     def method(self):
         local_var: int = 100
         return local_var
@@ -1346,7 +1346,7 @@ print("mixed annotations work")
 """
         res = assert_python_ok('-X', 'strict-type-annotations', '-c', no_annotation_code)
         self.assertIn(b'mixed annotations work', res.out)
-        
+
         # Test None values - strict checking applies to ALL assignments to annotated vars
         none_code = """
 x: int = 5
@@ -1355,7 +1355,7 @@ print("none assignment behavior")
 """
         res = assert_python_ok('-X', 'strict-type-annotations', '-c', none_code)
         self.assertIn(b'none assignment behavior', res.out)
-        
+
         # Test with None (using object type)
         none_compatible_code = """
 x: object = 5
@@ -1394,7 +1394,7 @@ x: int = "hello"
 """
         res = assert_python_failure('-X', 'strict-type-annotations', '-c', error_code)
         err_output = res.err.decode('utf-8')
-        
+
         # Check that error message contains useful information
         self.assertIn('TypeError', err_output)
         self.assertIn('type annotation', err_output)
