@@ -86,6 +86,7 @@ class CAPITests(unittest.TestCase):
             ("stdio_encoding", str, None),
             ("stdio_errors", str, None),
             ("stdlib_dir", str | None, "_stdlib_dir"),
+            ("strict_type_annotations", bool, None),
             ("tracemalloc", int, None),
             ("use_environment", bool, None),
             ("use_frozen_modules", bool, None),

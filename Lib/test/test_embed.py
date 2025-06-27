@@ -650,6 +650,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         '_init_main': True,
         'use_frozen_modules': not support.Py_DEBUG,
         'safe_path': False,
+        'strict_type_annotations': False,
         '_is_python_build': IGNORE_CONFIG,
     }
     if Py_STATS:

@@ -133,7 +133,10 @@ def dyld_find(name, executable_path=None, env=None):
         try:
             if _dyld_shared_cache_contains_path(path):
                 return path
-        except NotImplementedError:
+        except (NotImplementedError, OSError, ValueError):
+            # Handle NotImplementedError (when function is not available)
+            # Handle OSError (when system call fails)
+            # Handle ValueError (when path is invalid)
             pass
 
     raise ValueError("dylib %s could not be found" % (name,))
