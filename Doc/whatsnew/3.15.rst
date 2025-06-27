@@ -75,6 +75,16 @@ New features
 Other language changes
 ======================
 
+* A new command-line option :option:`-X strict-type-annotations` enables strict
+  runtime type checking for variable assignments with explicit type annotations.
+  When enabled, if a variable has an explicit type hint and is assigned a value
+  of an incompatible type, a :exc:`TypeError` will be raised at runtime.
+
+  .. note::
+
+     This is an experimental feature and may change or be removed in future
+     Python versions.
+
 * Several error messages incorrectly using the term "argument" have been corrected.
   (Contributed by Stan Ulbrych in :gh:`133382`.)
 

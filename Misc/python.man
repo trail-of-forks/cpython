@@ -384,6 +384,13 @@ Set implementation-specific option. The following options are available:
         memory blocks when the program finishes or after each statement in the
         interactive interpreter. This only works on debug builds
 
+    \fB\-X strict\-type\-annotations\fR: enable strict runtime type checking for
+        variable assignments with explicit type annotations. When enabled, if a
+        variable has an explicit type hint and is assigned a value of an
+        incompatible type, a TypeError will be raised at runtime.
+        This is an experimental feature and may change or be removed in future
+        Python versions.
+
     \fB\-X tracemalloc\fR: start tracing Python memory allocations using the
         tracemalloc module. By default, only the most recent frame is stored in a
         traceback of a trace. Use \-X tracemalloc=NFRAME to start tracing with a

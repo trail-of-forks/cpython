@@ -676,6 +676,18 @@ Miscellaneous options
 
      .. versionadded:: 3.14
 
+   * ``-X strict-type-annotations`` enables strict runtime type checking for
+     variable assignments with explicit type annotations. When enabled, if a
+     variable has an explicit type hint and is assigned a value of an
+     incompatible type, a :exc:`TypeError` will be raised at runtime.
+
+     .. note::
+
+        This is an experimental feature and may change or be removed in future
+        Python versions.
+
+     .. versionadded:: 3.15
+
    It also allows passing arbitrary values and retrieving them through the
    :data:`sys._xoptions` dictionary.
 
